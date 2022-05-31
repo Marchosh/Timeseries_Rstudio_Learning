@@ -1,0 +1,224 @@
+```{r setup, include=FALSE}
+# install package
+install.packages("dplyr")
+install.packages("lubridate")
+install.packages("forecast")
+install.packages("TTR")
+install.packages("MLmetrics")
+install.packages("tseries")
+install.packages("fpp")
+install.packages("TSstudio")
+install.packages("ggplot2")
+install.packages("tidyr")
+
+
+
+library(dplyr) # data wrangling
+library(lubridate) # date manipulation
+library(forecast) # time series library
+library(TTR) # for Simple moving average function
+library(MLmetrics) # calculate error
+library(tseries) # adf.test
+library(fpp) # usconsumtion
+library(TSstudio) # mempercantik visualisasi timeseries
+library(ggplot2) #visualize
+library(tidyr) # data cleaning
+```
+
+```{r}
+# read data co
+co2 <- read.csv("environment_1970f.csv")
+head(co2)
+```
+
+
+```{r}
+range(co2$year)
+all(1970:2012 == co2$year)
+co2 <- co2 %>% 
+  arrange(year)
+```
+
+```{r}
+co2_ts <- ts(data = co2$CO2.emissions..metric.tons.per.capita., start = 1970, frequency = 1)
+co2_ts
+```
+
+```{r}
+object_ts <- ts(co2$CO2.emissions..metric.tons.per.capita., frequency = 1)
+object_ts
+```
+```{r}
+co2_ts %>% autoplot()
+```
+```{r}
+window(co2_ts, start = 1995, end = 2000) %>% autoplot()
+```
+
+
+```{r}
+birth <- read.csv("nybirth.csv")
+head(birth)
+```
+```{r}
+birth <- birth %>% 
+  arrange(date)
+
+birth_ts <- ts(birth$births, frequency = 12)
+birth_ts
+```
+
+
+
+```{r}
+birth_ts %>% autoplot()
+```
+
+
+```{r}
+birth_decomp <- decompose(birth_ts)
+plot(decompose(birth_ts))
+```
+
+```{r}
+birth_decomp %>% autoplot()
+
+```
+
+```{r}
+birth_decomp
+``` 
+
+
+```{r}
+birthsSeasonAdj <- birth_ts - birth_decomp$seasonal
+plot.ts(birthsSeasonAdj)
+
+```
+
+```{r}
+birth_decomp_add <- decompose(birth_ts, type = "additive")
+plot(birth_decomp_add)
+```
+
+
+
+```{r}
+births_smoothing <- birth_ts - birth_decomp$seasonal - birth_decomp$random
+plot.ts(births_smoothing)
+```
+```{r}
+Ma21_birth = ma(birth_ts, order=21, centre=TRUE)
+
+plot(birth_ts)
+lines(Ma21_birth, col="blue", lwd=1)
+```
+```{r}
+season_error <- birth_decomp$seasonal + birth_decomp$random
+Data_trend <- birth_ts - birth_decomp$trend
+plot.ts(Data_trend)
+lines(season_error, col="blue", lwd='1')
+```
+```{r}
+# Manual
+sea.err_birth <- birth_ts-birth_decomp$trend
+sea.err_birth %>% autoplot()
+
+# mean of each month
+mean.month_birth <- sea.err_birth %>% 
+  matrix(ncol =  12, byrow = T) %>% 
+  colMeans(na.rm = T)
+
+# mean global
+mean.glob_birth <- mean(mean.month_birth)
+
+# Seasonality Calculation
+birth_seasonal <- ts(rep(mean.month_birth - mean.glob_birth, 12), start = start(birth_ts), frequency = 12)
+ 
+birth_seasonal %>% autoplot()
+```
+
+```{r}
+birth_trend <- birth_decomp$trend
+birth_decomp$random %>% autoplot()
+
+# matematis didalamnya
+
+birth_error <- birth_ts - (birth_trend + birth_seasonal)
+birth_error %>% autoplot()
+```
+
+```{r}
+#analysis seasonal
+birth %>% 
+  mutate(monthly = month(date, label = T, abbr = F),
+         seasonality = birth_decomp$seasonal) %>% 
+  distinct(monthly, seasonality) %>% 
+  ggplot(aes(x = monthly, y = seasonality)) +
+  geom_col()+
+  theme_minimal()
+```
+```{r}
+birth_ts %>% seasonplot()
+```
+
+```{r}
+#multiplicative timeseries
+AirPassengers %>% autoplot()
+decompose(AirPassengers, type = "multiplicative") %>% autoplot()
+```
+```{r}
+# Transform log to be additive
+log(AirPassengers) %>% autoplot()
+```
+
+```{r}
+#other method
+air_decom <- decompose(x = AirPassengers, type = "multiplicative")
+air_decom %>% autoplot()
+```
+
+
+```{r}
+air_decom$trend %>% autoplot()
+```
+
+```{r}
+# proof manual
+air_trend <- ma(AirPassengers, order = 12, centre = T)
+air_trend %>% autoplot()
+```
+
+* Seasonal
+
+Seasonal*Error = Data / Trend
+
+```{r}
+air_decom$seasonal %>% autoplot()
+```
+
+
+```{r}
+# proof manual
+air_seas_error <- AirPassengers/air_trend
+
+mean_air_seas <- air_seas_error %>% 
+  matrix(ncol = 12, byrow = T) %>% 
+  colMeans(na.rm = T)
+air_seasonal <- ts(rep(mean_air_seas, 12), start = c(1949, 1), frequency = 12)
+air_seasonal %>% autoplot()
+```
+* Error
+
+Error = Data / (Trend*Seasonal)
+
+```{r}
+# proof manual
+air_error <- AirPassengers/ (air_trend*air_seasonal)
+air_error %>% autoplot()
+```
+
+
+
+
+
